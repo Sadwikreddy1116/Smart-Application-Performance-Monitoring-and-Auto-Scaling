@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Auto-Scaling Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-top: 0.5rem;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-indicator {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        .status-ok { background-color: #48bb78; } /* Green */
+        .status-warning { background-color: #f6ad55; } /* Orange */
+        .status-danger { background-color: #ef4444; } /* Red */
+
+        /* Custom scrollbar for logs */
+        .log-container {
+            max-height: 300px; /* Limit height */
+            overflow-y: auto; /* Enable vertical scrolling */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #a0aec0 #edf2f7; /* Firefox */
+        }
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .log-container::-webkit-scrollbar-track {
+            background: #edf2f7;
+            border-radius: 10px;
+        }
+        .log-container::-webkit-scrollbar-thumb {
+            background-color: #a0aec0;
+            border-radius: 10px;
+            border: 2px solid #edf2f7;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col p-4 sm:p-6 lg:p-8">
+
+    <header class="w-full max-w-7xl mx-auto mb-8">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800 text-center">
+            Smart Auto-Scaling Dashboard
+        </h1>
+        <p class="text-gray-600 text-center mt-2">
+            Real-time monitoring and predictive scaling insights.
+        </p>
+    </header>
+
+    <main class="flex-grow w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Current CPU Utilization Card -->
+        <div class="card">
+            <span class="metric-label">Current CPU Usage</span>
+            <div class="metric-value" id="currentCpu">--%</div>
+            <p class="text-xs text-gray-500 mt-2">Live application CPU utilization.</p>
+        </div>
+
+        <!-- Predicted CPU Utilization Card -->
+        <div class="card">
+            <span class="metric-label">Predicted CPU (Next 30 min)</span>
+            <div class="metric-value" id="predictedCpu">--%</div>
+            <p class="text-xs text-gray-500 mt-2">Forecasted demand for proactive scaling.</p>
+        </div>
+
+        <!-- Current Instances Card -->
+        <div class="card">
+            <span class="metric-label">Current Instances</span>
+            <div class="metric-value" id="currentInstances">--</div>
+            <p class="text-xs text-gray-500 mt-2">Number of active application instances.</p>
+        </div>
+
+        <!-- Anomaly Detection Status Card -->
+        <div class="card">
+            <span class="metric-label">Anomaly Status</span>
+            <div class="metric-value flex items-center justify-center">
+                <span id="anomalyIndicator" class="status-indicator status-ok"></span>
+                <span id="anomalyStatusText">Normal</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Detects unusual performance patterns.</p>
+        </div>
+
+    </main>
+
+    <section class="w-full max-w-7xl mx-auto mt-8">
+        <div class="card p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Scaling Actions Log</h2>
+            <div id="scalingLog" class="log-container w-full text-left text-sm text-gray-700 space-y-2">
+                <!-- Log entries will be added here by JavaScript -->
+                <p class="text-gray-500">No recent scaling actions to display.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="w-full max-w-7xl mx-auto mt-8 text-center text-gray-500 text-sm">
+        <p>&copy; 2024 Smart Auto-Scaling System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // JavaScript to simulate data updates
+        const currentCpuEl = document.getElementById('currentCpu');
+        const predictedCpuEl = document.getElementById('predictedCpu');
+        const currentInstancesEl = document.getElementById('currentInstances');
+        const anomalyIndicatorEl = document.getElementById('anomalyIndicator');
+        const anomalyStatusTextEl = document.getElementById('anomalyStatusText');
+        const scalingLogEl = document.getElementById('scalingLog');
+
+        let currentInstances = 2; // Initial simulated instances
+
+        function updateDashboard() {
+            // Simulate current CPU (random walk around a base, with occasional spikes)
+            let currentCpu = parseFloat(currentCpuEl.textContent) || 50;
+            currentCpu += (Math.random() - 0.5) * 10; // Small random change
+            if (Math.random() < 0.1) { // 10% chance of a spike/dip
+                currentCpu += (Math.random() > 0.5 ? 1 : -1) * Math.random() * 20;
+            }
+            currentCpu = Math.max(10, Math.min(95, currentCpu)); // Keep within 10-95%
+
+            // Simulate predicted CPU (slightly smoother, often following current trend)
+            let predictedCpu = (currentCpu * 0.8 + (Math.random() * 20 + 30) * 0.2); // Mix of current and base
+            predictedCpu = Math.max(10, Math.min(95, predictedCpu));
+
+            // Simulate anomaly detection
+            let isAnomaly = false;
+            if (currentCpu > 85 || currentCpu < 15) { // Simple anomaly condition
+                isAnomaly = true;
+            }
+
+            // Simulate scaling decision (simplified logic from Python)
+            let action = 'no_action';
+            let targetInstances = currentInstances;
+            let logMessage = '';
+
+            // Reactive scaling based on current CPU
+            if (currentCpu > 70 && currentInstances < 5) { // Scale up if high CPU
+                action = 'scale_up';
+                targetInstances = Math.min(5, currentInstances + 1);
+                logMessage = CPU High (${currentCpu.toFixed(2)}%). Scaling UP to ${targetInstances} instances.;
+            } else if (currentCpu < 30 && currentInstances > 1) { // Scale down if low CPU
+                action = 'scale_down';
+                targetInstances = Math.max(1, currentInstances - 1);
+                logMessage = CPU Low (${currentCpu.toFixed(2)}%). Scaling DOWN to ${targetInstances} instances.;
+            } else if (predictedCpu > 60 && currentInstances < 5) { // Predictive scale up
+                 action = 'scale_up';
+                 targetInstances = Math.min(5, currentInstances + 1);
+                 logMessage = Predicted demand high (${predictedCpu.toFixed(2)}%). Proactive scale UP to ${targetInstances} instances.;
+            } else if (predictedCpu < 40 && currentInstances > 1) { // Predictive scale down
+                 action = 'scale_down';
+                 targetInstances = Math.max(1, currentInstances - 1);
+                 logMessage = Predicted demand low (${predictedCpu.toFixed(2)}%). Proactive scale DOWN to ${targetInstances} instances.;
+            }
+            
+            // Apply anomaly-driven immediate scale-up if critical
+            if (isAnomaly && currentCpu > 90 && currentInstances < 5) {
+                action = 'scale_up_critical';
+                targetInstances = Math.min(5, currentInstances + 2); // More aggressive scale-up
+                logMessage = CRITICAL ANOMALY (${currentCpu.toFixed(2)}%)! Aggressively scaling UP to ${targetInstances} instances.;
+            }
+
+
+            if (action !== 'no_action' && targetInstances !== currentInstances) {
+                currentInstances = targetInstances;
+                const timestamp = new Date().toLocaleTimeString();
+                const newLogEntry = document.createElement('p');
+                newLogEntry.className = 'bg-gray-50 p-2 rounded-md';
+                newLogEntry.innerHTML = <span class="font-semibold text-gray-900">[${timestamp}]</span> ${logMessage};
+                scalingLogEl.prepend(newLogEntry); // Add to top
+                // Keep log clean (e.g., max 10 entries)
+                while (scalingLogEl.children.length > 10) {
+                    scalingLogEl.removeChild(scalingLogEl.lastChild);
+                }
+                 // Remove initial placeholder if logs start coming in
+                 if (scalingLogEl.querySelector('.text-gray-500')) {
+                    scalingLogEl.innerHTML = '';
+                 }
+            } else if (logMessage === '') { // Only log 'no action' if no other action was taken
+                // No action, but we might still want to log status occasionally
+                // For this simple demo, we'll only log actions
+            }
+
+
+            // Update dashboard elements
+            currentCpuEl.textContent = ${currentCpu.toFixed(2)}%;
+            predictedCpuEl.textContent = ${predictedCpu.toFixed(2)}%;
+            currentInstancesEl.textContent = currentInstances;
+
+            anomalyIndicatorEl.className = 'status-indicator';
+            if (isAnomaly) {
+                anomalyIndicatorEl.classList.add('status-danger');
+                anomalyStatusTextEl.textContent = 'Anomaly Detected!';
+            } else if (currentCpu > 60 || predictedCpu > 60) {
+                anomalyIndicatorEl.classList.add('status-warning');
+                anomalyStatusTextEl.textContent = 'High Usage';
+            } else {
+                anomalyIndicatorEl.classList.add('status-ok');
+                anomalyStatusTextEl.textContent = 'Normal';
+            }
+        }
+
+        // Update dashboard every few seconds
+        setInterval(updateDashboard, 3000); // Update every 3 seconds
+
+        // Initial update
+        updateDashboard();
+    </script>
+</body>
+</html>
